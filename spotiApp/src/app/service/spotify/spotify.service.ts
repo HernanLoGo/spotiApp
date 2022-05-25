@@ -1,42 +1,61 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import {
-  spotify_client_id,
-  spotify_client_secret,
-} from 'src/app/util/constant';
-
+import { map } from 'rxjs';
+import { URL_AUTH_GET_TOKEN } from 'src/app/util/constant';
 @Injectable({
   providedIn: 'root',
 })
 export class SpotifyService {
-  paises: any[] = [];
-
   constructor(private http: HttpClient) {}
 
-  auth() {
-    const basicAuth = spotify_client_id + ':' + spotify_client_secret;
-    console.log(window.btoa(basicAuth));
+  getQuery(query: string) {
+    const url = `https://api.spotify.com/v1/${query}`;
 
-    const headers = new HttpHeaders();
-    headers.append('Content-Type', 'application/x-www-form-urlencoded');
-    headers.append('Authorization', 'Basic ' + window.btoa(basicAuth));
-    //headers.append('grant_type', 'client_credentials');
-    const authOptions = {
-      headers,
-    };
+    const headers = new HttpHeaders({
+      Authorization:
+        'Bearer BQA8tSQzME_kx-Vxwajhvbnbnll2i3_EzeY5Vp9RNePGzqQ45kYSc7Fu9iFDEBBc5Xtr44eR59Bc0NDHaow',
+    });
+    return this.http.get(url, { headers });
+  }
 
-    // const body = {
-    //   grant_type: 'client_credentials',
-    // };
+  async authGetToken() {
+    this.http.get(URL_AUTH_GET_TOKEN).subscribe((data: any) => {
+      // return data.access_token;
 
-    const body = new URLSearchParams();
-    body.set('grant_type', 'client_credentials');
-    body.set('redirect_uri', 'http://localhost:4200/#/home');
-
-    this.http
-      .post('https://accounts.spotify.com/api/token', JSON.stringify(body),authOptions)
-      .subscribe((data: any) => {
-        console.log(data);
+      const token = data.access_token;
+      const headers = new HttpHeaders({
+        Authorization: 'Bearer ' + token,
       });
+      console.log('bearer ' + token);
+      this.http
+        .get('https://api.spotify.com/v1/browse/new-releases?limit=20', {
+          headers,
+        })
+        .subscribe((data) => {
+          console.log(data);
+        });
+    });
+  }
+
+  getNewReleases() {
+    return this.getQuery('browse/new-releases?limit=20').pipe(
+      map((data: any) => data.albums.items)
+    );
+  }
+
+  searchArtist(artist: string) {
+    return this.getQuery(`search?q=${artist}&type=artist&limit=15`).pipe(
+      map((data: any) => data.artists.items)
+    );
+  }
+
+  getArtist(artistId: string) {
+    return this.getQuery(`artists/${artistId}`);
+  }
+
+  getTopTracks(artistId: string) {
+    return this.getQuery(`artists/${artistId}/top-tracks?market=us`).pipe(
+      map((data: any) => data.tracks)
+    );
   }
 }
